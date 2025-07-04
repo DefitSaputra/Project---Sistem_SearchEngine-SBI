@@ -75,11 +75,13 @@
     <section class="relative min-h-screen flex justify-center pt-20 sm:pt-0 sm:items-center bg-pattern">
         <!-- Background Images -->
         <div class="absolute inset-0 z-0">
+            <div class="absolute inset-0 bg-gray-900 bg-opacity-60 saturate-50 mix-blend-multiply"></div>
             <div class="absolute inset-0 bg-gradient-to-br from-sbi-green/20 via-sbi-gray/30 to-sbi-dark-green/20"></div>
-            <div class="absolute top-0 left-0 w-full h-full bg-[url('/images/SBI-bg.jpg')] bg-cover bg-center opacity-20"></div>
+             <div class="absolute top-0 left-0 w-full h-full bg-[url('/images/SBI-bg.jpg')] bg-cover bg-center opacity-20"></div>
             <div class="absolute top-0 right-0 w-1/3 h-full bg-[url('/images/SBI-bg2.jpeg')] bg-cover bg-center opacity-10"></div>
             <div class="absolute bottom-0 left-0 w-1/3 h-full bg-[url('/images/SBI-bg3.jpg')] bg-cover bg-center opacity-10"></div>
         </div>
+
 
         <!-- Content -->
         <div class="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -89,13 +91,14 @@
             </div>
 
             <!-- Title -->
-            <h1 class="text-4xl md:text-6xl font-bold text-sbi-gray mb-4">
+            <h1 class="text-4xl md:text-6xl font-bold text-[#263238] mb-4">
                 Solusi Bangun Indonesia
-                <span class="block text-sbi-green">Search Portal</span>
+                <span class="block text-sbi-green text-shadow-dark">Search Portal</span>
             </h1>
 
+
             <!-- Subtitle -->
-            <p class="text-xl md:text-2xl text-sbi-light-gray mb-8 max-w-2xl mx-auto">
+            <p class="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto">
                 Temukan informasi terkini tentang konstruksi, pembangunan, dan solusi infrastruktur terpercaya
             </p>
 
@@ -120,7 +123,7 @@
 
             <!-- Quick Search Tags -->
             <div class="mt-8 flex flex-wrap justify-center gap-3">
-                <span class="text-sbi-light-gray text-sm">Pencarian populer:</span>
+               <span class="text-white/90 text-sm">Pencarian populer:</span>
                 <a href="{{ route('search.perform') }}?q=semen" class="bg-white/80 hover:bg-sbi-green hover:text-white px-4 py-2 rounded-full text-sm text-sbi-gray transition-all duration-300">
                     Semen
                 </a>

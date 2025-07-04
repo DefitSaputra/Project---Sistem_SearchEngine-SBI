@@ -10,7 +10,7 @@
             theme: {
                 extend: {
                     colors: {
-                        'sbi-green': '#8BC34A',
+                        'sbi-green': '#28a745',
                         'sbi-dark-green': '#689F38',
                         'sbi-gray': '#37474F',
                         'sbi-light-gray': '#607D8B',

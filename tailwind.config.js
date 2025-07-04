@@ -21,7 +21,7 @@ export default {
     theme: {
         extend: {
             colors: {
-                'sbi-green': '#ADCE34',
+                'sbi-green': '#8BC34A',
             },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
