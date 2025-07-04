@@ -62,35 +62,9 @@
     </style>
 </head>
 <body class="bg-gray-50">
+
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center">
-                    <a href="{{ route('dashboard') }}" class="flex items-center">
-                        <div class="w-8 h-8 bg-sbi-green rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-building text-white"></i>
-                        </div>
-                        <span class="text-xl font-bold text-sbi-gray">PT Solusi Bangun Indonesia</span>
-                    </a>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="relative">
-                        <button class="flex items-center space-x-2 text-sbi-gray hover:text-sbi-green transition-colors">
-                            <i class="fas fa-user-circle text-xl"></i>
-                            <span>{{ Auth::user()->name }}</span>
-                        </button>
-                    </div>
-                    <form method="POST" action="{{ route('logout') }}" class="inline">
-                        @csrf
-                        <button type="submit" class="text-sbi-light-gray hover:text-red-500 transition-colors">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </nav>
+    @include('layouts.navigation')
 
     <!-- Search Header -->
     <div class="bg-white border-b">
@@ -352,47 +326,7 @@
     </div>
 
     <!-- Footer -->
-    <footer class="bg-sbi-gray text-white py-8 mt-12">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div>
-                    <div class="flex items-center mb-4">
-                        <div class="w-8 h-8 bg-sbi-green rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-building text-white"></i>
-                        </div>
-                        <span class="text-xl font-bold">SBI Search</span>
-                    </div>
-                    <p class="text-gray-300 text-sm">Portal pencarian terintegrasi untuk informasi konstruksi dan material bangunan terkini.</p>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Kontak</h4>
-                    <div class="text-gray-300 text-sm space-y-1">
-                        <p>Jl. TB Simatupang No. 22-26</p>
-                        <p>Jakarta 12430</p>
-                        <p>Tel: +62 21 29861000</p>
-                        <p>Email: info@sbi.co.id</p>
-                    </div>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Bantuan</h4>
-                    <div class="text-gray-300 text-sm space-y-2">
-                        <a href="#" class="block hover:text-sbi-green transition-colors">
-                            <i class="fas fa-question-circle mr-2"></i>FAQ
-                        </a>
-                        <a href="#" class="block hover:text-sbi-green transition-colors">
-                            <i class="fas fa-envelope mr-2"></i>Hubungi Kami
-                        </a>
-                        <a href="#" class="block hover:text-sbi-green transition-colors">
-                            <i class="fas fa-shield-alt mr-2"></i>Kebijakan Privasi
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="border-t border-gray-600 mt-8 pt-8 text-center text-gray-400 text-sm">
-                <p>&copy; 2024 PT Solusi Bangun Indonesia. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+    @include('layouts.footer')
 
     <script>
         // Save search query to recent searches

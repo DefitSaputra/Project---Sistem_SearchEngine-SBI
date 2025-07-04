@@ -42,34 +42,9 @@
     </style>
 </head>
 <body class="bg-gray-50">
+
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <a href="/">
-                            <img src="{{ asset('images/logo-sbi.png') }}" alt="Solusi Bangun Indonesia Logo" class="block h-9 w-auto">
-                        </a>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="relative">
-                        <button class="flex items-center space-x-2 text-sbi-gray hover:text-sbi-green transition-colors">
-                            <i class="fas fa-user-circle text-xl"></i>
-                            <span>{{ Auth::user()->name }}</span>
-                        </button>
-                    </div>
-                    <form method="POST" action="{{ route('logout') }}" class="inline">
-                        @csrf
-                        <button type="submit" class="text-sbi-light-gray hover:text-red-500 transition-colors">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </nav>
+    @include('layouts.navigation')
 
     <!-- Hero Section -->
     <section class="relative min-h-screen flex justify-center pt-20 sm:pt-0 sm:items-center bg-pattern">
@@ -180,51 +155,7 @@
     </section>
 
     <!-- Footer -->
-    <footer class="bg-sbi-gray text-white py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <div>
-                    <img src="{{ asset('images/logo-sbi.png') }}" alt="Solusi Bangun Indonesia Logo" class="block h-9 w-auto mb-4">
-                    <p class="text-gray-300">PT Solusi Bangun Indonesia - Membangun masa depan dengan inovasi dan kualitas terpercaya.</p>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Kontak</h4>
-                    <p class="text-gray-300 text-sm">Jl. TB Simatupang No. 22-26</p>
-                    <p class="text-gray-300 text-sm">Jakarta 12430</p>
-                    <p class="text-gray-300 text-sm">Tel: +62 21 29861000</p>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Layanan</h4>
-                    <ul class="text-gray-300 text-sm space-y-2">
-                        <li>Material Bangunan</li>
-                        <li>Konstruksi</li>
-                        <li>Konsultasi</li>
-                        <li>Manajemen Proyek</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-semibold mb-4">Ikuti Kami</h4>
-                    <div class="flex space-x-4">
-                        <a href="#" class="text-gray-300 hover:text-sbi-green transition-colors">
-                            <i class="fab fa-facebook"></i>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-sbi-green transition-colors">
-                            <i class="fab fa-twitter"></i>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-sbi-green transition-colors">
-                            <i class="fab fa-instagram"></i>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-sbi-green transition-colors">
-                            <i class="fab fa-linkedin"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="border-t border-gray-600 mt-8 pt-8 text-center text-gray-400 text-sm">
-                <p>&copy; 2024 PT Solusi Bangun Indonesia. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+    @include('layouts.footer')
 
     <!-- Error/Success Messages -->
     @if(session('error'))
