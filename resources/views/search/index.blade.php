@@ -47,11 +47,10 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
-                    <div class="flex-shrink-0 flex items-center">
-                        <div class="w-8 h-8 bg-sbi-green rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-building text-white"></i>
-                        </div>
-                        <span class="text-xl font-bold text-sbi-gray">PT Solusi Bangun Indonesia</span>
+                    <div class="flex-shrink-0">
+                        <a href="/">
+                            <img src="{{ asset('images/logo-sbi.png') }}" alt="Solusi Bangun Indonesia Logo" class="block h-9 w-auto">
+                        </a>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
@@ -73,7 +72,7 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="relative min-h-screen flex items-center justify-center bg-pattern">
+    <section class="relative min-h-screen flex justify-center pt-20 sm:pt-0 sm:items-center bg-pattern">
         <!-- Background Images -->
         <div class="absolute inset-0 z-0">
             <div class="absolute inset-0 bg-gradient-to-br from-sbi-green/20 via-sbi-gray/30 to-sbi-dark-green/20"></div>
@@ -85,10 +84,8 @@
         <!-- Content -->
         <div class="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <!-- Company Logo/Icon -->
-            <div class="mb-8 animate-float">
-                <div class="inline-flex items-center justify-center w-24 h-24 bg-sbi-green rounded-full shadow-2xl">
-                    <i class="fas fa-search text-white text-3xl"></i>
-                </div>
+           <div class="mb-1 animate-float">
+                <img src="{{ asset('images/mini-logo.png') }}" alt="Solusi Bangun Indonesia Logo" class="w-32 h-auto mx-auto">
             </div>
 
             <!-- Title -->
@@ -184,12 +181,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div>
-                    <div class="flex items-center mb-4">
-                        <div class="w-8 h-8 bg-sbi-green rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-building text-white"></i>
-                        </div>
-                        <span class="text-xl font-bold">SBI</span>
-                    </div>
+                    <img src="{{ asset('images/logo-sbi.png') }}" alt="Solusi Bangun Indonesia Logo" class="block h-9 w-auto mb-4">
                     <p class="text-gray-300">PT Solusi Bangun Indonesia - Membangun masa depan dengan inovasi dan kualitas terpercaya.</p>
                 </div>
                 <div>
