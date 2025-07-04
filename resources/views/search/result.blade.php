@@ -187,7 +187,7 @@
 
                                 <!-- Result Snippet -->
                                 <div class="result-snippet">
-                                    <p>{{ $result['snippet'] }}</p>
+                                    <p>{{ $result['snippet'] ?? '-' }}</p>
                                 </div>
 
                                 <!-- Additional Info -->

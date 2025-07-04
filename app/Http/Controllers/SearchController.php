@@ -22,8 +22,8 @@ class SearchController extends Controller
         }
 
         try {
-            $apiKey = env('GOOGLE_API_KEY');
-            $searchEngineId = env('SEARCH_ENGINE_ID');
+            $apiKey = "AIzaSyDjitmTVXe1-Q3t5z2vONnzJ8Z0GDAOGbQ";
+            $searchEngineId = "2021cf58c69b844ae";
             
             $response = Http::get('https://www.googleapis.com/customsearch/v1', [
                 'key' => $apiKey,
@@ -36,7 +36,7 @@ class SearchController extends Controller
             if ($response->successful()) {
                 $data = $response->json();
                 
-                return view('search.results', [
+                return view('search.result', [
                     'results' => $data['items'] ?? [],
                     'searchInfo' => $data['searchInformation'] ?? [],
                     'query' => $query,
