@@ -11,10 +11,11 @@
             </div>
             <div class="flex items-center space-x-4">
                 <div class="relative">
-                    <button class="flex items-center space-x-2 text-sbi-gray hover:text-sbi-green transition-colors">
+                    <a href="{{ route('profile.edit') }}" class="flex items-center space-x-2 text-sbi-gray hover:text-sbi-green transition-colors">
                         <i class="fas fa-user-circle text-xl"></i>
                         <span>{{ Auth::user()->name }}</span>
-                    </button>
+                    </a>
+
                 </div>
                 <form method="POST" action="{{ route('logout') }}" class="inline">
                     @csrf
