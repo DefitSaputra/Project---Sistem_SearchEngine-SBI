@@ -24,23 +24,23 @@
             <div>
                 <h4 class="font-semibold mb-4">Ikuti Kami</h4>
                 <div class="flex space-x-4">
-                    <a href="#" class="text-gray-300 hover:text-sbi-green transition-colors">
+                    <a href="https://www.facebook.com/people/PT-Solusi-Bangun-Indonesia-Tbk/61568142358066/?locale=id_ID" class="text-gray-300 hover:text-sbi-green transition-colors">
                         <i class="fab fa-facebook"></i>
                     </a>
-                    <a href="#" class="text-gray-300 hover:text-sbi-green transition-colors">
-                        <i class="fab fa-twitter"></i>
+                    <a href="https://x.com/solusibangunid" class="text-gray-300 hover:text-sbi-green transition-colors">
+                       <i class="fab fa-twitter"></i>
                     </a>
-                    <a href="#" class="text-gray-300 hover:text-sbi-green transition-colors">
+                    <a href="https://www.instagram.com/solusibangunid/#" class="text-gray-300 hover:text-sbi-green transition-colors">
                         <i class="fab fa-instagram"></i>
                     </a>
-                    <a href="#" class="text-gray-300 hover:text-sbi-green transition-colors">
+                    <a href="https://www.linkedin.com/company/solusi-bangun-indonesia/" class="text-gray-300 hover:text-sbi-green transition-colors">
                         <i class="fab fa-linkedin"></i>
                     </a>
                 </div>
             </div>
         </div>
         <div class="border-t border-gray-600 mt-8 pt-8 text-center text-gray-400 text-sm">
-            <p>&copy; 2024 PT Solusi Bangun Indonesia. All rights reserved.</p>
+            <p>&copy; 2025 PT Solusi Bangun Indonesia. All rights reserved.</p>
         </div>
     </div>
 </footer>
