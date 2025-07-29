@@ -43,12 +43,9 @@
 </head>
 <body class="bg-gray-50">
 
-    <!-- Navigation -->
     @include('layouts.navigation')
 
-    <!-- Hero Section -->
     <section class="relative min-h-screen flex justify-center pt-20 sm:pt-0 sm:items-center bg-pattern">
-        <!-- Background Images -->
         <div class="absolute inset-0 z-0">
             <div class="absolute inset-0 bg-gray-900 bg-opacity-60 saturate-50 mix-blend-multiply"></div>
             <div class="absolute inset-0 bg-gradient-to-br from-sbi-green/20 via-sbi-gray/30 to-sbi-dark-green/20"></div>
@@ -58,26 +55,21 @@
         </div>
 
 
-        <!-- Content -->
         <div class="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <!-- Company Logo/Icon -->
-           <div class="mb-1 animate-float">
+            <div class="mb-1 animate-float">
                 <img src="{{ asset('images/mini-logo.png') }}" alt="Solusi Bangun Indonesia Logo" class="w-32 h-auto mx-auto">
             </div>
 
-            <!-- Title -->
             <h1 class="text-4xl md:text-6xl font-bold text-[#263238] mb-4">
                 Solusi Bangun Indonesia
                 <span class="block text-sbi-green text-shadow-dark">Search Portal</span>
             </h1>
 
 
-            <!-- Subtitle -->
             <p class="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto">
                 Temukan informasi terkini tentang konstruksi, pembangunan, dan solusi infrastruktur terpercaya
             </p>
 
-            <!-- Search Form -->
             <div class="max-w-2xl mx-auto">
                 <form action="{{ route('search.perform') }}" method="GET" class="relative">
                     <div class="relative search-shadow">
@@ -96,26 +88,20 @@
                 </form>
             </div>
 
-            <!-- Quick Search Tags -->
-            <div class="mt-8 flex flex-wrap justify-center gap-3">
-               <span class="text-white/90 text-sm">Pencarian populer:</span>
-                <a href="{{ route('search.perform') }}?q=semen" class="bg-white/80 hover:bg-sbi-green hover:text-white px-4 py-2 rounded-full text-sm text-sbi-gray transition-all duration-300">
-                    Semen
-                </a>
-                <a href="{{ route('search.perform') }}?q=beton" class="bg-white/80 hover:bg-sbi-green hover:text-white px-4 py-2 rounded-full text-sm text-sbi-gray transition-all duration-300">
-                    Beton
-                </a>
-                <a href="{{ route('search.perform') }}?q=konstruksi" class="bg-white/80 hover:bg-sbi-green hover:text-white px-4 py-2 rounded-full text-sm text-sbi-gray transition-all duration-300">
-                    Konstruksi
-                </a>
-                <a href="{{ route('search.perform') }}?q=infrastruktur" class="bg-white/80 hover:bg-sbi-green hover:text-white px-4 py-2 rounded-full text-sm text-sbi-gray transition-all duration-300">
-                    Infrastruktur
-                </a>
-            </div>
+            @if(!empty($searchHistory))
+                <div class="mt-8 flex flex-wrap justify-center items-center gap-3">
+                    <span class="text-white/90 text-sm">Riwayat Pencarian:</span>
+                    
+                    @foreach($searchHistory as $item)
+                        <a href="{{ route('search.perform', ['q' => $item]) }}" class="bg-white/80 hover:bg-sbi-green hover:text-white px-4 py-2 rounded-full text-sm text-sbi-gray transition-all duration-300">
+                            {{ $item }}
+                        </a>
+                    @endforeach
+                </div>
+            @endif
         </div>
     </section>
 
-    <!-- Company Info Section -->
     <section class="py-16 bg-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-12">
@@ -154,10 +140,8 @@
         </div>
     </section>
 
-    <!-- Footer -->
     @include('layouts.footer')
 
-    <!-- Error/Success Messages -->
     @if(session('error'))
         <div class="fixed top-20 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
             <i class="fas fa-exclamation-circle mr-2"></i>
@@ -177,7 +161,8 @@
         setTimeout(() => {
             const messages = document.querySelectorAll('.fixed.top-20');
             messages.forEach(msg => {
-                msg.style.transform = 'translateX(100%)';
+                msg.style.transition = 'transform 0.3s ease-out';
+                msg.style.transform = 'translateX(120%)';
                 setTimeout(() => msg.remove(), 300);
             });
         }, 5000);

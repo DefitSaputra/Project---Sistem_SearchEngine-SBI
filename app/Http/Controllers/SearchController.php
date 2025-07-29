@@ -8,20 +8,50 @@ use Illuminate\Support\Facades\Log;
 
 class SearchController extends Controller
 {
-    public function index()
+    /**
+     * Menampilkan halaman pencarian utama.
+     */
+    public function index(Request $request) // -- PENYESUAIAN -- Menambahkan Request $request
     {
-        return view('search.index');
+        // -- PENYESUAIAN --
+        // Ambil riwayat pencarian dari session untuk ditampilkan di halaman utama.
+        $searchHistory = $request->session()->get('search_history', []);
+
+        return view('search.index', [
+            'searchHistory' => $searchHistory
+        ]);
     }
 
+    /**
+     * Menjalankan pencarian dan menyimpan query ke riwayat.
+     */
     public function search(Request $request)
     {
         $query = $request->input('q');
         
+        // Redirect jika query kosong. Nama rute disesuaikan menjadi search.index
         if (empty($query)) {
-            return redirect()->route('dashboard')->with('error', 'Please enter a search query.');
+            return redirect()->route('search.index')->with('error', 'Silakan masukkan kata kunci pencarian.');
         }
 
+        // -- PENYESUAIAN --
+        // Logika untuk menyimpan riwayat pencarian ke session.
+        // Blok ini dieksekusi setiap kali pencarian valid dilakukan.
+        if ($query) {
+            $history = $request->session()->get('search_history', []);
+            // Hapus query yang sama jika sudah ada (untuk dipindahkan ke depan)
+            $history = array_diff($history, [$query]);
+            // Tambahkan query baru ke awal array
+            array_unshift($history, $query);
+            // Batasi riwayat hanya 5 item terakhir
+            $history = array_slice($history, 0, 10);
+            // Simpan kembali ke session
+            $request->session()->put('search_history', $history);
+        }
+        // -- AKHIR PENYESUAIAN --
+
         try {
+            // Kredensial API Anda (sebaiknya disimpan di file .env)
             $apiKey = "AIzaSyDjitmTVXe1-Q3t5z2vONnzJ8Z0GDAOGbQ";
             $searchEngineId = "2021cf58c69b844ae";
             
@@ -29,8 +59,11 @@ class SearchController extends Controller
                 'key' => $apiKey,
                 'cx' => $searchEngineId,
                 'q' => $query,
-                'num' => 10, // Number of results to return
-                'start' => $request->input('start', 1), // For pagination
+                'num' => 10,
+                'start' => $request->input('start', 1),
+                'sort' => 'date',
+                'hl' => 'id',
+                'lr' => 'lang_id',
             ]);
 
             if ($response->successful()) {
@@ -49,11 +82,13 @@ class SearchController extends Controller
                     'response' => $response->body()
                 ]);
                 
-                return redirect()->route('dashboard')->with('error', 'Search service temporarily unavailable. Please try again later.');
+                // Redirect jika API error. Nama rute disesuaikan menjadi search.index
+                return redirect()->route('search.index')->with('error', 'Layanan pencarian tidak tersedia saat ini.');
             }
         } catch (\Exception $e) {
             Log::error('Search Error: ' . $e->getMessage());
-            return redirect()->route('dashboard')->with('error', 'An error occurred while searching. Please try again.');
+            // Redirect jika ada error lain. Nama rute disesuaikan menjadi search.index
+            return redirect()->route('search.index')->with('error', 'Terjadi kesalahan saat melakukan pencarian.');
         }
     }
 }
