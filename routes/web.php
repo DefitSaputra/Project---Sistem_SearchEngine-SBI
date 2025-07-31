@@ -4,29 +4,28 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
-// Redirect root to dashboard
+// Pengguna yang membuka halaman utama akan diarahkan ke dashboard
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-// Dashboard route - protected by auth
+// Rute Dashboard utama yang menampilkan halaman pencarian
 Route::get('/dashboard', [SearchController::class, 'index'])
     ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+    ->name('dashboard'); // <-- Diberi nama 'dashboard'
 
+// Grup untuk rute-rute lain yang memerlukan login
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Main search route
-    Route::get('/search', [SearchController::class, 'search'])->name('search.perform');
     
-    Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->name('search.suggestions');
-});
+    // Rute untuk memproses pencarian dan menampilkan hasil
+    // URL diubah menjadi /search agar tidak bentrok dengan /dashboard
+    Route::get('/search', [SearchController::class, 'search'])->name('search.perform');
 
-// Profile routes
-Route::middleware('auth')->group(function () {
+    // Rute Profil
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Authentication routes
+// Rute Autentikasi
 require __DIR__.'/auth.php';
