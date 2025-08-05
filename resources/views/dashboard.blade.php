@@ -39,6 +39,35 @@
                 radial-gradient(circle at 20% 20%, rgba(139, 195, 74, 0.1) 0%, transparent 50%),
                 radial-gradient(circle at 80% 80%, rgba(55, 71, 79, 0.1) 0%, transparent 50%);
         }
+
+        /* ## PERUBAHAN 1: CSS BARU UNTUK KOTAK SARAN ## */
+        #suggestions-container {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            margin-top: 8px; /* Jarak dari kotak pencarian */
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-height: 280px;
+            overflow-y: auto;
+            text-align: left; /* Pastikan teks di dalam rata kiri */
+        }
+        .suggestion-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+        .suggestion-item:hover {
+            background-color: #f3f4f6; /* bg-gray-100 */
+        }
+        #suggestions-container:empty {
+            display: none; /* Sembunyikan jika tidak ada saran */
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -65,26 +94,31 @@
                 <span class="block text-sbi-green text-shadow-dark">Search Portal</span>
             </h1>
 
-
             <p class="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto">
                 Temukan informasi terkini tentang konstruksi, pembangunan, dan solusi infrastruktur terpercaya
             </p>
 
             <div class="max-w-2xl mx-auto">
-                <form action="{{ route('search.perform') }}" method="GET" class="relative">
+                {{-- ## PERUBAHAN 2: FORM DIBERI ID ## --}}
+                <form action="{{ route('search.perform') }}" method="GET" class="relative" id="search-form">
                     <div class="relative search-shadow">
+                        {{-- ## PERUBAHAN 3: INPUT DIBERI ID & AUTOCOMPLETE=OFF ## --}}
                         <input 
                             type="text" 
                             name="q" 
+                            id="search-input"
                             placeholder="Cari informasi konstruksi, material, atau layanan..."
                             class="w-full px-6 py-4 text-lg border-2 border-sbi-green/20 rounded-full focus:outline-none focus:border-sbi-green focus:ring-4 focus:ring-sbi-green/20 transition-all duration-300"
-                            required>
+                            required
+                            autocomplete="off">
                         <button 
                             type="submit"
                             class="absolute right-2 top-2 bottom-2 px-6 bg-sbi-green hover:bg-sbi-dark-green text-white rounded-full transition-all duration-300 hover:scale-105">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
+                     {{-- ## PERUBAHAN 4: CONTAINER BARU UNTUK SARAN PENCARIAN ## --}}
+                    <div id="suggestions-container"></div>
                 </form>
             </div>
 
@@ -102,6 +136,7 @@
         </div>
     </section>
 
+    {{-- Kode selanjutnya tidak saya tampilkan untuk brevity, tapi tetap ada di file Anda --}}
     <section class="py-16 bg-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-12">
@@ -111,7 +146,6 @@
                     menyediakan solusi inovatif untuk pembangunan infrastruktur berkelanjutan.
                 </p>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="text-center p-6 bg-gray-50 rounded-lg hover:shadow-lg transition-shadow">
                     <div class="w-16 h-16 bg-sbi-green rounded-full flex items-center justify-center mx-auto mb-4">
@@ -120,7 +154,6 @@
                     <h3 class="text-xl font-semibold text-sbi-gray mb-2">Produksi Material</h3>
                     <p class="text-sbi-light-gray">Memproduksi material bangunan berkualitas tinggi untuk berbagai kebutuhan konstruksi</p>
                 </div>
-
                 <div class="text-center p-6 bg-gray-50 rounded-lg hover:shadow-lg transition-shadow">
                     <div class="w-16 h-16 bg-sbi-green rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-hammer text-white text-2xl"></i>
@@ -128,7 +161,6 @@
                     <h3 class="text-xl font-semibold text-sbi-gray mb-2">Layanan Konstruksi</h3>
                     <p class="text-sbi-light-gray">Penyedia layanan konstruksi terintegrasi dari perencanaan hingga penyelesaian</p>
                 </div>
-
                 <div class="text-center p-6 bg-gray-50 rounded-lg hover:shadow-lg transition-shadow">
                     <div class="w-16 h-16 bg-sbi-green rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-leaf text-white text-2xl"></i>
@@ -166,6 +198,79 @@
                 setTimeout(() => msg.remove(), 300);
             });
         }, 5000);
+    </script>
+    
+    {{-- ## PERUBAHAN 5: SCRIPT BARU UNTUK FITUR SEARCH SUGGESTIONS ## --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mengambil elemen berdasarkan ID yang sudah ditambahkan
+            const searchInput = document.getElementById('search-input');
+            const suggestionsContainer = document.getElementById('suggestions-container');
+            const searchForm = document.getElementById('search-form');
+            let debounceTimer;
+
+            // Event listener ketika pengguna mengetik
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value;
+                clearTimeout(debounceTimer); // Reset timer setiap kali ada input baru
+
+                // Hanya cari jika input lebih dari 1 huruf
+                if (query.length < 2) {
+                    suggestionsContainer.innerHTML = '';
+                    return;
+                }
+
+                // Atur jeda sebelum mengirim request (Debouncing)
+                debounceTimer = setTimeout(() => {
+                    fetchSuggestions(query);
+                }, 300); // Tunggu 300ms setelah pengguna berhenti mengetik
+            });
+
+            // Fungsi untuk mengambil data saran dari server
+            async function fetchSuggestions(query) {
+                try {
+                    // Panggil rute yang sudah kita buat
+                    const response = await fetch(`{{ route('search.suggestions') }}?q=${encodeURIComponent(query)}`);
+                    const suggestions = await response.json();
+                    displaySuggestions(suggestions);
+                } catch (error) {
+                    console.error('Error fetching suggestions:', error);
+                    suggestionsContainer.innerHTML = '';
+                }
+            }
+
+            // Fungsi untuk menampilkan saran di halaman
+            function displaySuggestions(suggestions) {
+                if (suggestions.length === 0) {
+                    suggestionsContainer.innerHTML = '';
+                    return;
+                }
+                const suggestionHTML = suggestions.map(suggestion => `
+                    <div class="suggestion-item" data-value="${suggestion}">
+                        <i class="fas fa-history text-gray-400 mr-3"></i>
+                        <span class="text-sbi-gray">${suggestion}</span>
+                    </div>
+                `).join('');
+                suggestionsContainer.innerHTML = suggestionHTML;
+            }
+
+            // Event listener jika salah satu saran diklik
+            suggestionsContainer.addEventListener('click', (event) => {
+                const suggestionItem = event.target.closest('.suggestion-item');
+                if (suggestionItem) {
+                    searchInput.value = suggestionItem.dataset.value; // Isi kotak pencarian
+                    suggestionsContainer.innerHTML = ''; // Kosongkan daftar saran
+                    searchForm.submit(); // Langsung cari
+                }
+            });
+
+            // Event listener untuk menyembunyikan saran jika klik di luar area form
+            document.addEventListener('click', (event) => {
+                if (!searchForm.contains(event.target)) {
+                    suggestionsContainer.innerHTML = '';
+                }
+            });
+        });
     </script>
 </body>
 </html>

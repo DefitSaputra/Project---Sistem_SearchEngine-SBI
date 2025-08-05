@@ -18,8 +18,11 @@ Route::get('/dashboard', [SearchController::class, 'index'])
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // Rute untuk memproses pencarian dan menampilkan hasil
-    // URL diubah menjadi /search agar tidak bentrok dengan /dashboard
     Route::get('/search', [SearchController::class, 'search'])->name('search.perform');
+
+    // ## RUTE BARU UNTUK SEARCH SUGGESTIONS ##
+    // Rute ini akan menyediakan data saran dalam format JSON
+    Route::get('/search/suggestions', [SearchController::class, 'getSuggestions'])->name('search.suggestions');
 
     // Rute Profil
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

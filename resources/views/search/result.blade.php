@@ -20,6 +20,10 @@
         }
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    {{-- ## PERUBAHAN 1: Tambahkan CSS Leaflet.js untuk Peta ## --}}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
     <style>
         .result-card { transition: all 0.3s ease; }
         .result-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); }
@@ -32,6 +36,15 @@
         .pagination-link:hover { background-color: #f8f9fa; }
         .pagination-link.active { background-color: #8BC34A; color: white; border-color: #8BC34A; }
         img { object-fit: cover; }
+
+        /* ## PERUBAHAN 2: Tambahkan style untuk container peta ## */
+        #map { 
+            height: 500px; /* Peta harus punya tinggi agar terlihat */
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 0; /* Pastikan peta berada di bawah elemen sticky header */
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -42,7 +55,6 @@
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
-                    {{-- PERBAIKAN: Mengarah ke rute 'dashboard' yang benar --}}
                     <a href="{{ route('dashboard') }}" class="flex items-center text-sbi-green hover:text-sbi-dark-green transition-colors">
                         <i class="fas fa-arrow-left mr-2"></i>
                         <span>Kembali ke Beranda</span>
@@ -81,14 +93,15 @@
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col lg:flex-row gap-8">
             <div class="flex-1">
-                @if(!empty($results))
+                {{-- Cek apakah ada hasil pencarian ATAU ada data peta --}}
+                @if(!empty($results) || isset($mapData))
                     <div class="mb-6">
                         <div class="search-stats">
                             <p><i class="fas fa-info-circle mr-2"></i>Menampilkan sekitar <strong>{{ number_format($totalResults ?? 0) }}</strong> hasil untuk "<strong>{{ $query }}</strong>" @if(isset($searchInfo['searchTime'])) ({{ number_format($searchInfo['searchTime'], 2) }} detik) @endif</p>
                         </div>
                     </div>
 
-                    {{-- ## PERBAIKAN LOGIKA RENDERING UTAMA ## --}}
+                    {{-- ## PERUBAHAN 3: Logika Rendering Utama dengan Penambahan Peta ## --}}
                     @if ($type === 'image')
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             @foreach($results as $result)
@@ -116,7 +129,20 @@
                                 </a>
                             @endforeach
                         </div>
+                    @elseif ($type === 'map')
+                        {{-- Blok baru untuk menampilkan peta atau pesan 'tidak ditemukan' --}}
+                        @if (isset($mapData))
+                            <h3 class="text-lg font-semibold text-sbi-gray mb-4">Lokasi ditemukan untuk: <span class="font-bold">"{{ $query }}"</span></h3>
+                            <div id="map"></div> {{-- Ini adalah wadah untuk peta --}}
+                        @else
+                            <div class="text-center py-12 bg-white rounded-lg shadow-sm">
+                                <i class="fas fa-map-marked-alt text-6xl text-gray-300"></i>
+                                <h3 class="text-xl font-semibold text-sbi-gray mt-4 mb-2">Lokasi Tidak Ditemukan</h3>
+                                <p class="text-sbi-light-gray">Maaf, kami tidak dapat menemukan koordinat untuk "{{ $query }}".</p>
+                            </div>
+                        @endif
                     @else
+                        {{-- Ini adalah blok untuk hasil pencarian 'all', 'news', dll. --}}
                         <div class="space-y-6">
                             @foreach($results as $index => $result)
                                 <div class="result-card bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 p-6">
@@ -138,28 +164,31 @@
                                         </div>
                                     </div>
                                     <div class="result-snippet mt-2">
-                                        <p>{{ $result['snippet'] ?? '-' }}</p>
+                                        <p>{!! $result['htmlSnippet'] ?? $result['snippet'] ?? '-' !!}</p>
                                     </div>
                                 </div>
                             @endforeach
                         </div>
                     @endif
-                    {{-- ## AKHIR PERBAIKAN LOGIKA RENDERING ## --}}
-
-                    <div class="mt-12 flex justify-center">
-                        <div class="flex items-center space-x-2">
-                            @if($currentPage > 1)
-                                <a href="{{ route('search.perform', ['q' => $query, 'type' => $type, 'start' => max(1, $currentPage - 10)]) }}" class="pagination-link px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"><i class="fas fa-chevron-left mr-1"></i> Sebelumnya</a>
-                            @endif
-                            @for($i = 1; $i <= min(10, ceil($totalResults / 10)); $i++)
-                                @php $start = ($i - 1) * 10 + 1; @endphp
-                                <a href="{{ route('search.perform', ['q' => $query, 'type' => $type, 'start' => $start]) }}" class="pagination-link px-4 py-2 border border-gray-300 rounded-lg {{ $start == $currentPage ? 'active' : '' }} transition-colors">{{ $i }}</a>
-                            @endfor
-                            @if($currentPage + 10 <= $totalResults)
-                                <a href="{{ route('search.perform', ['q' => $query, 'type' => $type, 'start' => $currentPage + 10]) }}" class="pagination-link px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Selanjutnya <i class="fas fa-chevron-right ml-1"></i></a>
-                            @endif
+                    
+                    {{-- ## PERUBAHAN 4: Sembunyikan Paginasi untuk Tampilan Peta ## --}}
+                    @if($type !== 'map' && !empty($results))
+                        <div class="mt-12 flex justify-center">
+                            <div class="flex items-center space-x-2">
+                                @if($currentPage > 1)
+                                    <a href="{{ route('search.perform', ['q' => $query, 'type' => $type, 'start' => max(1, $currentPage - 10)]) }}" class="pagination-link px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"><i class="fas fa-chevron-left mr-1"></i> Sebelumnya</a>
+                                @endif
+                                @for($i = 1; $i <= min(10, ceil($totalResults / 10)); $i++)
+                                    @php $start = ($i - 1) * 10 + 1; @endphp
+                                    <a href="{{ route('search.perform', ['q' => $query, 'type' => $type, 'start' => $start]) }}" class="pagination-link px-4 py-2 border border-gray-300 rounded-lg {{ $start == $currentPage ? 'active' : '' }} transition-colors">{{ $i }}</a>
+                                @endfor
+                                @if($currentPage + 10 <= $totalResults)
+                                    <a href="{{ route('search.perform', ['q' => $query, 'type' => $type, 'start' => $currentPage + 10]) }}" class="pagination-link px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Selanjutnya <i class="fas fa-chevron-right ml-1"></i></a>
+                                @endif
+                            </div>
                         </div>
-                    </div>
+                    @endif
+
                 @else
                     <div class="text-center py-12">
                         <div class="mb-6">
@@ -178,9 +207,7 @@
                                 <li>• Kurangi jumlah kata kunci</li>
                             </ul>
                             <div class="mt-6">
-                                {{-- PERBAIKAN: Mengarah ke rute 'dashboard' yang benar --}}
-                                <a href="{{ route('dashboard') }}"
-                                   class="inline-flex items-center px-6 py-3 bg-sbi-green hover:bg-sbi-dark-green text-white rounded-lg transition-colors">
+                                <a href="{{ route('dashboard') }}" class="inline-flex items-center px-6 py-3 bg-sbi-green hover:bg-sbi-dark-green text-white rounded-lg transition-colors">
                                     <i class="fas fa-home mr-2"></i>
                                     Kembali ke Beranda
                                 </a>
@@ -190,60 +217,45 @@
                 @endif
             </div>
 
+            {{-- Sidebar Kanan --}}
             <div class="w-full lg:w-80">
-                <!-- Search Tips -->
                 <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                     <h3 class="text-lg font-semibold text-sbi-gray mb-4">
-                        <i class="fas fa-lightbulb text-sbi-green mr-2"></i>
-                        Tips Pencarian
+                        <i class="fas fa-lightbulb text-sbi-green mr-2"></i> Tips Pencarian
                     </h3>
                     <div class="space-y-3 text-sm text-sbi-light-gray">
                         <div class="flex items-start space-x-2">
                             <i class="fas fa-quote-left text-sbi-green mt-1"></i>
-                            <div>
-                                <strong>Gunakan tanda kutip</strong> untuk mencari frasa lengkap
-                                <div class="text-xs text-gray-500 mt-1">Contoh: "beton ready mix"</div>
-                            </div>
+                            <div><strong>Gunakan tanda kutip</strong> untuk mencari frasa lengkap <div class="text-xs text-gray-500 mt-1">Contoh: "beton ready mix"</div></div>
                         </div>
                         <div class="flex items-start space-x-2">
                             <i class="fas fa-minus text-sbi-green mt-1"></i>
-                            <div>
-                                <strong>Gunakan minus (-)</strong> untuk mengecualikan kata
-                                <div class="text-xs text-gray-500 mt-1">Contoh: konstruksi -apartemen</div>
-                            </div>
+                            <div><strong>Gunakan minus (-)</strong> untuk mengecualikan kata <div class="text-xs text-gray-500 mt-1">Contoh: konstruksi -apartemen</div></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Links -->
                 <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                     <h3 class="text-lg font-semibold text-sbi-gray mb-4">
-                        <i class="fas fa-link text-sbi-green mr-2"></i>
-                        Tautan Cepat
+                        <i class="fas fa-link text-sbi-green mr-2"></i> Tautan Cepat
                     </h3>
                     <div class="space-y-3">
-                        <a href="{{ route('search.perform') }}?q=produk+semen"
-                           class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-sbi-green/10 rounded-lg transition-colors group">
+                        <a href="{{ route('search.perform') }}?q=produk+semen" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-sbi-green/10 rounded-lg transition-colors group">
                             <i class="fas fa-industry text-sbi-green group-hover:text-sbi-dark-green"></i>
                             <span class="text-sbi-gray group-hover:text-sbi-dark-green">Produk Semen</span>
                         </a>
-                        <a href="{{ route('search.perform') }}?q=layanan+konstruksi"
-                           class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-sbi-green/10 rounded-lg transition-colors group">
+                        <a href="{{ route('search.perform') }}?q=layanan+konstruksi" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-sbi-green/10 rounded-lg transition-colors group">
                             <i class="fas fa-hammer text-sbi-green group-hover:text-sbi-dark-green"></i>
                             <span class="text-sbi-gray group-hover:text-sbi-dark-green">Layanan Konstruksi</span>
                         </a>
                     </div>
                 </div>
-
-                <!-- Recent Searches -->
+                
                 <div class="bg-white rounded-lg shadow-sm p-6">
                     <h3 class="text-lg font-semibold text-sbi-gray mb-4">
-                        <i class="fas fa-history text-sbi-green mr-2"></i>
-                        Pencarian Terkini
+                        <i class="fas fa-history text-sbi-green mr-2"></i> Pencarian Terkini
                     </h3>
-                    <div class="space-y-2" id="recent-searches">
-                        <!-- Populated by JavaScript -->
-                    </div>
+                    <div class="space-y-2" id="recent-searches"></div>
                 </div>
             </div>
         </div>
@@ -251,9 +263,12 @@
 
     @include('layouts.footer')
 
+    {{-- ## PERUBAHAN 5: Tambahkan JS Leaflet.js sebelum penutup body ## --}}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const query = '{{ $query ?? '' }}'; // Menambahkan fallback jika query tidak ada
+            const query = '{{ $query ?? '' }}';
             if (query) {
                 let recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
                 recentSearches = recentSearches.filter(search => search !== query);
@@ -279,6 +294,29 @@
                 </a>
             `).join('');
         }
+
+        // ## PERUBAHAN 6: Skrip untuk Inisialisasi Peta ##
+        // Skrip ini hanya akan berjalan jika tipe pencarian adalah 'map' dan datanya ditemukan
+        @if ($type === 'map' && isset($mapData))
+            // Ambil data dari PHP Blade ke JavaScript dengan aman
+            const mapData = @json($mapData);
+
+            // Inisialisasi peta di dalam div #map
+            // Angka 15 adalah level zoom awal (semakin besar angkanya, semakin dekat)
+            const map = L.map('map').setView([mapData.lat, mapData.lon], 15);
+
+            // Tambahkan lapisan peta (tile layer) dari OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Tambahkan penanda (marker) di lokasi yang ditemukan
+            const marker = L.marker([mapData.lat, mapData.lon]).addTo(map);
+
+            // Tambahkan popup (info box) pada marker yang menampilkan alamat lengkap
+            marker.bindPopup(`<b>{{ $query }}</b><br>${mapData.display_name}`).openPopup();
+        @endif
     </script>
 </body>
 </html>
