@@ -20,10 +20,13 @@
         }
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    {{-- ## PERUBAHAN 1: Tambahkan CSS Leaflet.js untuk Peta ## --}}
+
+    {{-- Aset untuk Peta Dasar --}}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
+    {{-- ## PENAMBAHAN 1: Aset CSS untuk Fitur Rute (Routing) ## --}}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
     <style>
         .result-card { transition: all 0.3s ease; }
         .result-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); }
@@ -36,14 +39,18 @@
         .pagination-link:hover { background-color: #f8f9fa; }
         .pagination-link.active { background-color: #8BC34A; color: white; border-color: #8BC34A; }
         img { object-fit: cover; }
-
-        /* ## PERUBAHAN 2: Tambahkan style untuk container peta ## */
         #map { 
-            height: 500px; /* Peta harus punya tinggi agar terlihat */
+            height: 600px; /* Sedikit lebih tinggi untuk mengakomodasi panel rute */
             width: 100%;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            z-index: 0; /* Pastikan peta berada di bawah elemen sticky header */
+            z-index: 0;
+        }
+        /* Style agar panel rute terlihat bagus */
+        .leaflet-routing-container {
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
         }
     </style>
 </head>
@@ -84,7 +91,7 @@
                     </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-sm text-sbi-light-gray"><i class="fas fa-clock mr-1"></i>{{ date('d M Y, H:i') }}</div>
+                    <div class="text-sm text-sbi-light-gray"><i class="fas fa-clock mr-1"></i>{{ now()->format('d M Y, H:i') }}</div>
                 </div>
             </div>
         </div>
@@ -93,15 +100,13 @@
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col lg:flex-row gap-8">
             <div class="flex-1">
-                {{-- Cek apakah ada hasil pencarian ATAU ada data peta --}}
-                @if(!empty($results) || isset($mapData))
+                @if(!empty($results) || !empty($mapData))
                     <div class="mb-6">
                         <div class="search-stats">
-                            <p><i class="fas fa-info-circle mr-2"></i>Menampilkan sekitar <strong>{{ number_format($totalResults ?? 0) }}</strong> hasil untuk "<strong>{{ $query }}</strong>" @if(isset($searchInfo['searchTime'])) ({{ number_format($searchInfo['searchTime'], 2) }} detik) @endif</p>
+                             <p><i class="fas fa-info-circle mr-2"></i>Menampilkan sekitar <strong>{{ number_format($totalResults ?? 0) }}</strong> hasil untuk "<strong>{{ $query }}</strong>" @if(isset($searchInfo['searchTime'])) ({{ number_format($searchInfo['searchTime'], 2) }} detik) @endif</p>
                         </div>
                     </div>
 
-                    {{-- ## PERUBAHAN 3: Logika Rendering Utama dengan Penambahan Peta ## --}}
                     @if ($type === 'image')
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             @foreach($results as $result)
@@ -130,19 +135,21 @@
                             @endforeach
                         </div>
                     @elseif ($type === 'map')
-                        {{-- Blok baru untuk menampilkan peta atau pesan 'tidak ditemukan' --}}
-                        @if (isset($mapData))
-                            <h3 class="text-lg font-semibold text-sbi-gray mb-4">Lokasi ditemukan untuk: <span class="font-bold">"{{ $query }}"</span></h3>
-                            <div id="map"></div> {{-- Ini adalah wadah untuk peta --}}
+                        @if (!empty($mapData))
+                             @if(isset($centerPoint))
+                                <h3 class="text-lg font-semibold text-sbi-gray mb-4">Menampilkan hasil untuk <span class="font-bold">"{{ $query }}"</span> di sekitar lokasi Anda.</h3>
+                             @else
+                                <h3 class="text-lg font-semibold text-sbi-gray mb-4">Lokasi ditemukan untuk: <span class="font-bold">"{{ $query }}"</span></h3>
+                             @endif
+                            <div id="map"></div>
                         @else
                             <div class="text-center py-12 bg-white rounded-lg shadow-sm">
                                 <i class="fas fa-map-marked-alt text-6xl text-gray-300"></i>
                                 <h3 class="text-xl font-semibold text-sbi-gray mt-4 mb-2">Lokasi Tidak Ditemukan</h3>
-                                <p class="text-sbi-light-gray">Maaf, kami tidak dapat menemukan koordinat untuk "{{ $query }}".</p>
+                                <p class="text-sbi-light-gray">Maaf, kami tidak dapat menemukan hasil untuk "{{ $query }}".</p>
                             </div>
                         @endif
                     @else
-                        {{-- Ini adalah blok untuk hasil pencarian 'all', 'news', dll. --}}
                         <div class="space-y-6">
                             @foreach($results as $index => $result)
                                 <div class="result-card bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 p-6">
@@ -171,7 +178,6 @@
                         </div>
                     @endif
                     
-                    {{-- ## PERUBAHAN 4: Sembunyikan Paginasi untuk Tampilan Peta ## --}}
                     @if($type !== 'map' && !empty($results))
                         <div class="mt-12 flex justify-center">
                             <div class="flex items-center space-x-2">
@@ -188,7 +194,6 @@
                             </div>
                         </div>
                     @endif
-
                 @else
                     <div class="text-center py-12">
                         <div class="mb-6">
@@ -217,7 +222,6 @@
                 @endif
             </div>
 
-            {{-- Sidebar Kanan --}}
             <div class="w-full lg:w-80">
                 <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                     <h3 class="text-lg font-semibold text-sbi-gray mb-4">
@@ -263,9 +267,13 @@
 
     @include('layouts.footer')
 
-    {{-- ## PERUBAHAN 5: Tambahkan JS Leaflet.js sebelum penutup body ## --}}
+    {{-- Aset JS Peta Dasar --}}
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    {{-- ## PENAMBAHAN 2: Aset JS untuk Fitur Rute (Routing) ## --}}
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
+    {{-- Skrip untuk Pencarian Terkini --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const query = '{{ $query ?? '' }}';
@@ -294,28 +302,79 @@
                 </a>
             `).join('');
         }
-
-        // ## PERUBAHAN 6: Skrip untuk Inisialisasi Peta ##
-        // Skrip ini hanya akan berjalan jika tipe pencarian adalah 'map' dan datanya ditemukan
-        @if ($type === 'map' && isset($mapData))
-            // Ambil data dari PHP Blade ke JavaScript dengan aman
+    </script>
+    
+    {{-- ## PENAMBAHAN 3: Skrip Inisialisasi Peta yang Telah Diperbarui ## --}}
+    <script>
+        @if ($type === 'map' && !empty($mapData))
+            // Ambil data dari PHP Blade ke JavaScript
             const mapData = @json($mapData);
+            const centerPoint = @json($centerPoint); // Bisa jadi null jika bukan pencarian terdekat
 
-            // Inisialisasi peta di dalam div #map
-            // Angka 15 adalah level zoom awal (semakin besar angkanya, semakin dekat)
-            const map = L.map('map').setView([mapData.lat, mapData.lon], 15);
+            // Tentukan apakah ini pencarian terdekat (hasilnya berupa array)
+            const isNearbySearch = Array.isArray(mapData);
+            
+            // Buat icon khusus untuk lokasi pengguna
+            const userLocationIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                shadowSize: [41, 41]
+            });
 
-            // Tambahkan lapisan peta (tile layer) dari OpenStreetMap
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
+            // ===============================================================
+            // KONDISI 1: JIKA INI PENCARIAN TERDEKAT (BANYAK HASIL)
+            // ===============================================================
+            if (isNearbySearch) {
+                // Atur peta berpusat pada lokasi pengguna
+                const map = L.map('map').setView([centerPoint.lat, centerPoint.lon], 14);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
 
-            // Tambahkan penanda (marker) di lokasi yang ditemukan
-            const marker = L.marker([mapData.lat, mapData.lon]).addTo(map);
+                // Tambahkan marker biru untuk lokasi pengguna
+                L.marker([centerPoint.lat, centerPoint.lon], {icon: userLocationIcon})
+                    .addTo(map)
+                    .bindPopup('<b>Lokasi Anda Saat Ini</b>')
+                    .openPopup();
 
-            // Tambahkan popup (info box) pada marker yang menampilkan alamat lengkap
-            marker.bindPopup(`<b>{{ $query }}</b><br>${mapData.display_name}`).openPopup();
+                // Loop dan tampilkan semua lokasi yang ditemukan
+                mapData.forEach(place => {
+                    L.marker([place.lat, place.lon])
+                        .addTo(map)
+                        .bindPopup(`<b>${place.display_name}</b>`);
+                });
+            } 
+            // ===============================================================
+            // KONDISI 2: JIKA INI PENCARIAN BIASA (SATU HASIL + RUTE)
+            // ===============================================================
+            else {
+                // Atur peta berpusat pada lokasi yang dicari
+                const map = L.map('map').setView([mapData.lat, mapData.lon], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+                
+                // Tambahkan kontrol rute di peta
+                L.Routing.control({
+                    waypoints: [
+                        null, // Titik awal bisa diisi oleh pengguna
+                        L.latLng(mapData.lat, mapData.lon) // Titik tujuan adalah hasil pencarian
+                    ],
+                    routeWhileDragging: true,
+                    lineOptions: {
+                        styles: [{color: '#28a745', opacity: 1, weight: 5}]
+                    }
+                }).addTo(map);
+
+                // Tambahkan marker di lokasi tujuan
+                L.marker([mapData.lat, mapData.lon])
+                    .addTo(map)
+                    .bindPopup(`<b>{{ $query }}</b><br>${mapData.display_name}`)
+                    .openPopup();
+            }
         @endif
     </script>
 </body>

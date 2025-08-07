@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SearchLog; // <-- 1. TAMBAHKAN INI
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -11,189 +12,251 @@ class SearchController extends Controller
 {
     /**
      * Menampilkan halaman utama pencarian (form pencarian).
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\View\View
      */
     public function index(Request $request)
     {
-        // Ambil riwayat pencarian dari session untuk ditampilkan di halaman utama.
         $searchHistory = $request->session()->get('search_history', []);
-
-        // Tampilkan view 'dashboard' dengan data riwayat pencarian.
-        return view('dashboard', [
-            'searchHistory' => $searchHistory
-        ]);
+        return view('dashboard', ['searchHistory' => $searchHistory]);
     }
 
     /**
-     * Menjalankan pencarian, menyimpan query ke riwayat,
-     * dan menangani berbagai tipe pencarian (web, gambar, video, dll.).
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * Menjalankan semua jenis pencarian dan mencatatnya.
      */
     public function search(Request $request)
     {
-        // Ambil input 'q' (query) dan 'type' dari request.
         $query = $request->input('q');
-        $type = $request->input('type', 'all'); // Default ke 'all' jika tidak ada.
+        $type = $request->input('type', 'all');
 
-        // Jika query kosong, kembalikan ke halaman utama dengan pesan error.
         if (empty($query)) {
             return redirect()->route('dashboard')->with('error', 'Silakan masukkan kata kunci pencarian.');
         }
 
-        // Simpan query pencarian yang valid ke dalam session history.
-        $history = $request->session()->get('search_history', []);
-        $history = array_diff($history, [$query]); // Hapus query yang sama jika sudah ada (untuk dipindahkan ke depan).
-        array_unshift($history, $query); // Tambahkan query baru ke awal array.
-        $history = array_slice($history, 0, 10); // Batasi riwayat hanya 10 item terakhir.
-        $request->session()->put('search_history', $history); // Simpan kembali riwayat yang sudah diperbarui ke session.
+        $this->saveSearchHistory($request, $query);
+
+        $startTime = microtime(true); // <-- 2. CATAT WAKTU MULAI
 
         try {
-            // ===================================================================
-            // ## BLOK BARU: Penanganan Khusus untuk Pencarian Peta (Nominatim) ##
-            // ===================================================================
+            $response = null;
             if ($type === 'map') {
-                // Buat query yang lebih spesifik untuk hasil di Indonesia
-                $locationQuery = $query . ' Indonesia';
-
-                $response = Http::withHeaders([
-                    // PENTING: Nominatim membutuhkan User-Agent. Ganti dengan info aplikasi Anda.
-                    'User-Agent' => config('app.name') . '/1.0 (email-kontak-anda@example.com)'
-                ])->get('https://nominatim.openstreetmap.org/search', [
-                    'q' => $locationQuery,
-                    'format' => 'json',
-                    'addressdetails' => 1,
-                    'limit' => 1 // Ambil 1 hasil teratas saja
-                ]);
-
-                $mapData = null;
-                // Jika request berhasil dan hasilnya tidak kosong
-                if ($response->successful() && !empty($response->json())) {
-                    $location = $response->json()[0];
-                    $mapData = [
-                        'lat' => $location['lat'],
-                        'lon' => $location['lon'],
-                        'display_name' => $location['display_name'],
-                    ];
-                }
-
-                // Kirim data ke view 'search.result'
-                return view('search.result', [
-                    'query' => $query,
-                    'type' => $type,
-                    'mapData' => $mapData, // Data spesifik untuk peta
-                    'results' => [], // Tidak ada 'items' untuk tipe peta
-                    'searchInfo' => [],
-                    'currentPage' => 1, // Peta tidak memiliki paginasi
-                    'totalResults' => $mapData ? 1 : 0, // Hasilnya 1 jika lokasi ditemukan
-                ]);
-            }
-            // ===============================================
-            // ## AKHIR BLOK BARU: Penanganan Peta Selesai ##
-            // ===============================================
-
-            // ## LOGIKA LAMA ANDA: Pencarian menggunakan Google API (untuk 'all', 'image', 'news', 'video') ##
-            // Logika ini hanya akan berjalan jika $type BUKAN 'map'.
-            
-            // Ambil kredensial dari file .env untuk keamanan.
-            $apiKey = env('GOOGLE_API_KEY');
-            $searchEngineId = env('SEARCH_ENGINE_ID');
-
-            // Jika salah satu kredensial tidak ada, redirect dengan error.
-            if (!$apiKey || !$searchEngineId) {
-                Log::error('Kredensial Google API tidak ditemukan di file .env');
-                return redirect()->route('dashboard')->with('error', 'Konfigurasi layanan pencarian belum lengkap.');
-            }
-
-            // Siapkan parameter dasar untuk panggilan API.
-            $searchParams = [
-                'key' => $apiKey,
-                'cx' => $searchEngineId,
-                'q' => $query,
-                'num' => 10, // Jumlah hasil per halaman.
-                'start' => $request->input('start', 1), // Index halaman untuk paginasi.
-                'hl' => 'id', // Bahasa antarmuka (Bahasa Indonesia).
-                'lr' => 'lang_id', // Batasi hasil ke dokumen berbahasa Indonesia.
-            ];
-
-            // Modifikasi parameter berdasarkan tipe pencarian yang diminta.
-            switch ($type) {
-                case 'image':
-                    $searchParams['searchType'] = 'image';
-                    break;
-                case 'news':
-                    $searchParams['sort'] = 'date'; // Sortir berita berdasarkan tanggal.
-                    break;
-                case 'video':
-                    // Membatasi pencarian ke YouTube untuk hasil video yang lebih relevan.
-                    $searchParams['q'] = "site:youtube.com " . $query;
-                    break;
-            }
-
-            // Lakukan panggilan ke Google Custom Search API.
-            $response = Http::get('https://www.googleapis.com/customsearch/v1', $searchParams);
-
-            // Jika panggilan API berhasil (status code 2xx).
-            if ($response->successful()) {
-                $data = $response->json();
-
-                // Tampilkan view 'search.result' dengan data hasil pencarian.
-                return view('search.result', [
-                    'results' => $data['items'] ?? [],
-                    'searchInfo' => $data['searchInformation'] ?? [],
-                    'query' => $query,
-                    'type' => $type,
-                    'currentPage' => intval($request->input('start', 1)),
-                    'totalResults' => $data['searchInformation']['totalResults'] ?? 0,
-                    'mapData' => null, // Tidak ada data peta untuk tipe ini
-                ]);
+                $response = $this->handleMapSearch($request);
             } else {
-                // Jika panggilan API gagal (misal: kuota habis, error 4xx/5xx).
-                Log::error('Google Search API Error', [
-                    'status' => $response->status(),
-                    'response' => $response->body()
-                ]);
-                return redirect()->route('dashboard')->with('error', 'Layanan pencarian tidak tersedia. Mungkin kuota harian telah tercapai.');
+                $response = $this->handleGoogleSearch($request);
             }
+
+            // <-- 3. LOGIKA PENCATATAN DATA DIMULAI DI SINI -->
+            $endTime = microtime(true);
+
+            // Cek jika response adalah view dan punya data yang relevan
+            if ($response instanceof \Illuminate\View\View && isset($response->getData()['totalResults'])) {
+                $viewData = $response->getData();
+                
+                SearchLog::create([
+                    'user_id'       => auth()->id(),
+                    'query'         => $query,
+                    'results_count' => $viewData['totalResults'],
+                    'search_time'   => round($endTime - $startTime, 3),
+                    'filters'       => ['type' => $type], // Simpan tipe sebagai JSON
+                    'ip_address'    => $request->ip(),
+                    'user_agent'    => $request->userAgent(),
+                ]);
+            }
+            // <-- AKHIR LOGIKA PENCATATAN -->
+
+            return $response; // <-- 4. KEMBALIKAN RESPONSE ASLI
+
         } catch (Exception $e) {
-            // Jika terjadi error lain (misal: masalah koneksi).
-            Log::error('Search Controller Exception: ' . $e->getMessage());
+            Log::error('Search Controller Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return redirect()->route('dashboard')->with('error', 'Terjadi kesalahan tidak terduga saat melakukan pencarian.');
         }
     }
 
-    // ================================================================
-    // ## METHOD BARU: Untuk menyediakan data Search Suggestions ##
-    // ================================================================
     /**
-     * Menyediakan saran pencarian berdasarkan input pengguna.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
+     * Logika baru dan lebih cerdas untuk menangani semua pencarian peta.
      */
+    private function handleMapSearch(Request $request)
+    {
+        $query = $request->input('q');
+        $lat = $request->input('lat');
+        $lon = $request->input('lon');
+        $startTime = microtime(true);
+
+        if ($lat && $lon) {
+            $places = $this->findPlacesNearby($query, $lat, $lon);
+            return view('search.result', [
+                'query'        => $query,
+                'type'         => 'map',
+                'mapData'      => $places,
+                'centerPoint'  => ['lat' => $lat, 'lon' => $lon],
+                'totalResults' => count($places),
+                'results'      => [],
+                'searchInfo'   => [],
+                'currentPage'  => 1,
+            ]);
+        }
+
+        $parts = $this->parseQuery($query);
+        $what = $parts['what'];
+        $where = $parts['where'];
+
+        if ($where) {
+            $locationCoords = $this->geocodeLocation($where . ', Indonesia');
+            if ($locationCoords) {
+                $places = $this->findPlacesNearby($what, $locationCoords['lat'], $locationCoords['lon']);
+                if (!empty($places)) {
+                    return view('search.result', [
+                        'query'        => $query,
+                        'type'         => 'map',
+                        'mapData'      => $places,
+                        'centerPoint'  => $locationCoords,
+                        'totalResults' => count($places),
+                        'results'      => [],
+                        'searchInfo'   => [],
+                        'currentPage'  => 1,
+                    ]);
+                }
+            }
+        }
+
+        $location = $this->geocodeLocation($query . ', Indonesia');
+        return view('search.result', [
+            'query'        => $query,
+            'type'         => 'map',
+            'mapData'      => $location ? [$location] : [], // Pastikan mapData selalu array
+            'centerPoint'  => $location,
+            'totalResults' => $location ? 1 : 0,
+            'results'      => [],
+            'searchInfo'   => [],
+            'currentPage'  => 1,
+        ]);
+    }
+
+    /**
+     * Memanggil Overpass API untuk mencari tempat di sekitar koordinat.
+     */
+    private function findPlacesNearby($query, $lat, $lon, $radius = 10000)
+    {
+        $overpassQuery = "[out:json][timeout:50];(node['name'~'{$query}',i](around:{$radius},{$lat},{$lon});way['name'~'{$query}',i](around:{$radius},{$lat},{$lon}););out center;";
+        
+        $response = Http::timeout(60)->asForm()->withHeaders([
+            'User-Agent' => config('app.name') . '/1.0 (sbi@example.com)'
+        ])->post('https://overpass-api.de/api/interpreter', ['data' => $overpassQuery]);
+
+        $places = [];
+        if ($response->successful()) {
+            foreach ($response->json()['elements'] as $element) {
+                if (isset($element['tags']['name']) && (isset($element['lat']) || isset($element['center']['lat']))) {
+                    $places[] = [
+                        'lat' => $element['lat'] ?? $element['center']['lat'],
+                        'lon' => $element['lon'] ?? $element['center']['lon'],
+                        'display_name' => $element['tags']['name'],
+                        'tags' => $element['tags'] ?? [],
+                    ];
+                }
+            }
+        }
+        return $places;
+    }
+
+    /**
+     * Memanggil Nominatim API untuk mengubah alamat menjadi koordinat.
+     */
+    private function geocodeLocation($address)
+    {
+        $response = Http::timeout(60)->withHeaders([
+            'User-Agent' => config('app.name') . '/1.0 (sbi@example.com)'
+        ])->get('https://nominatim.openstreetmap.org/search', [
+            'q' => $address, 'format' => 'json', 'addressdetails' => 1, 'limit' => 1
+        ]);
+
+        if ($response->successful() && !empty($response->json())) {
+            $location = $response->json()[0];
+            return [
+                'lat' => $location['lat'],
+                'lon' => $location['lon'],
+                'display_name' => $location['display_name'],
+                'tags' => $location['address'] ?? [],
+            ];
+        }
+        return null;
+    }
+
+    private function parseQuery($query)
+    {
+        $prepositions = ['di', 'in', 'near', 'dekat'];
+        $query = str_ireplace($prepositions, '', $query);
+        $commonLocations = ['jakarta', 'bandung', 'surabaya', 'semarang', 'yogyakarta', 'medan', 'makassar', 'cilacap', 'purwokerto'];
+        foreach ($commonLocations as $location) {
+            if (str_contains(strtolower($query), $location)) {
+                return [
+                    'what' => trim(str_ireplace($location, '', $query)),
+                    'where' => $location
+                ];
+            }
+        }
+        return ['what' => $query, 'where' => null];
+    }
+
+    private function handleGoogleSearch(Request $request)
+    {
+        $query = $request->input('q');
+        $type = $request->input('type', 'all'); // Default ke 'all'
+        $apiKey = env('GOOGLE_API_KEY');
+        $searchEngineId = env('SEARCH_ENGINE_ID');
+
+        if (!$apiKey || !$searchEngineId) {
+            Log::error('Kredensial Google API tidak ditemukan di file .env');
+            return redirect()->route('dashboard')->with('error', 'Konfigurasi layanan pencarian belum lengkap.');
+        }
+
+        $searchParams = [
+            'key' => $apiKey, 'cx' => $searchEngineId, 'q' => $query,
+            'num' => 10, 'start' => $request->input('start', 1),
+            'hl' => 'id', 'lr' => 'lang_id',
+        ];
+
+        switch ($type) {
+            case 'image': $searchParams['searchType'] = 'image'; break;
+            case 'news': $searchParams['sort'] = 'date'; break;
+            case 'video': $searchParams['q'] = "site:youtube.com " . $query; break;
+        }
+
+        $response = Http::get('https://www.googleapis.com/customsearch/v1', $searchParams);
+
+        if ($response->successful()) {
+            $data = $response->json();
+            return view('search.result', [
+                'results'      => $data['items'] ?? [],
+                'searchInfo'   => $data['searchInformation'] ?? [],
+                'query'        => $query,
+                'type'         => $type,
+                'currentPage'  => intval($request->input('start', 1)),
+                'totalResults' => (int)($data['searchInformation']['totalResults'] ?? 0),
+                'mapData'      => null,
+                'centerPoint'  => null,
+            ]);
+        }
+        
+        Log::error('Google Search API Error', ['status' => $response->status(), 'response' => $response->body()]);
+        return redirect()->route('dashboard')->with('error', 'Layanan pencarian tidak tersedia saat ini.');
+    }
+
+    private function saveSearchHistory(Request $request, $query)
+    {
+        $history = $request->session()->get('search_history', []);
+        $history = array_diff($history, [$query]);
+        array_unshift($history, $query);
+        $request->session()->put('search_history', array_slice($history, 0, 10));
+    }
+    
     public function getSuggestions(Request $request)
     {
-        // Validasi untuk memastikan ada parameter 'q' dalam request
         $request->validate(['q' => 'required']);
-
         $query = strtolower($request->input('q'));
-
-        // Ambil riwayat pencarian dari session sebagai sumber data
         $searchHistory = $request->session()->get('search_history', []);
-
-        // Filter riwayat pencarian: cari item yang 'mengandung' query dari pengguna.
-        // str_contains() akan return true jika $item mengandung $query.
         $suggestions = array_filter($searchHistory, function ($item) use ($query) {
             return str_contains(strtolower($item), $query);
         });
-
-        // Batasi jumlah saran menjadi 5 teratas dan reset keys pada array
         $suggestions = array_slice(array_values($suggestions), 0, 5);
-
-        // Kembalikan hasilnya dalam format JSON
         return response()->json($suggestions);
     }
 }
