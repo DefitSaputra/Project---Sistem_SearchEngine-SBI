@@ -21,11 +21,18 @@
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
-    {{-- Aset untuk Peta Dasar --}}
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
-    {{-- ## PENAMBAHAN 1: Aset CSS untuk Fitur Rute (Routing) ## --}}
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    {{-- ## PERUBAHAN 1: OPTIMASI PEMUATAN ASET PETA ## --}}
+    @if ($type === 'map')
+        {{-- Memberi petunjuk browser untuk mulai mengunduh aset lebih awal --}}
+        <link rel="preload" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" as="style">
+        <link rel="preload" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" as="style">
+        <link rel="preload" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" as="script">
+        <link rel="preload" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js" as="script">
+
+        {{-- Memuat CSS Peta --}}
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    @endif
 
     <style>
         .result-card { transition: all 0.3s ease; }
@@ -40,13 +47,13 @@
         .pagination-link.active { background-color: #8BC34A; color: white; border-color: #8BC34A; }
         img { object-fit: cover; }
         #map { 
-            height: 600px; /* Sedikit lebih tinggi untuk mengakomodasi panel rute */
+            height: 600px;
             width: 100%;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             z-index: 0;
+            background-color: #e9e9e9; /* Warna placeholder saat peta sedang dimuat */
         }
-        /* Style agar panel rute terlihat bagus */
         .leaflet-routing-container {
             background-color: white;
             padding: 10px;
@@ -59,6 +66,7 @@
     @include('layouts.navigation')
 
     <div class="bg-white border-b sticky top-0 z-10">
+        {{-- Konten header tidak berubah --}}
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
@@ -98,12 +106,13 @@
     </div>
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {{-- Konten hasil pencarian tidak berubah --}}
         <div class="flex flex-col lg:flex-row gap-8">
             <div class="flex-1">
                 @if(!empty($results) || !empty($mapData))
                     <div class="mb-6">
                         <div class="search-stats">
-                             <p><i class="fas fa-info-circle mr-2"></i>Menampilkan sekitar <strong>{{ number_format($totalResults ?? 0) }}</strong> hasil untuk "<strong>{{ $query }}</strong>" @if(isset($searchInfo['searchTime'])) ({{ number_format($searchInfo['searchTime'], 2) }} detik) @endif</p>
+                                <p><i class="fas fa-info-circle mr-2"></i>Menampilkan sekitar <strong>{{ number_format($totalResults ?? 0) }}</strong> hasil untuk "<strong>{{ $query }}</strong>" @if(isset($searchInfo['searchTime'])) ({{ number_format($searchInfo['searchTime'], 2) }} detik) @endif</p>
                         </div>
                     </div>
 
@@ -136,11 +145,11 @@
                         </div>
                     @elseif ($type === 'map')
                         @if (!empty($mapData))
-                             @if(isset($centerPoint))
+                                @if(isset($centerPoint))
                                 <h3 class="text-lg font-semibold text-sbi-gray mb-4">Menampilkan hasil untuk <span class="font-bold">"{{ $query }}"</span> di sekitar lokasi Anda.</h3>
-                             @else
+                                @else
                                 <h3 class="text-lg font-semibold text-sbi-gray mb-4">Lokasi ditemukan untuk: <span class="font-bold">"{{ $query }}"</span></h3>
-                             @endif
+                                @endif
                             <div id="map"></div>
                         @else
                             <div class="text-center py-12 bg-white rounded-lg shadow-sm">
@@ -223,6 +232,7 @@
             </div>
 
             <div class="w-full lg:w-80">
+                {{-- Sidebar tidak berubah --}}
                 <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
                     <h3 class="text-lg font-semibold text-sbi-gray mb-4">
                         <i class="fas fa-lightbulb text-sbi-green mr-2"></i> Tips Pencarian
@@ -267,13 +277,64 @@
 
     @include('layouts.footer')
 
-    {{-- Aset JS Peta Dasar --}}
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
-    {{-- ## PENAMBAHAN 2: Aset JS untuk Fitur Rute (Routing) ## --}}
-    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    {{-- ## PERUBAHAN 2: MEMINDAHKAN SCRIPT PETA KE BAGIAN BAWAH ## --}}
+    @if ($type === 'map' && !empty($mapData))
+        {{-- Memuat JS Peta secara asinkron agar tidak memblokir rendering halaman --}}
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" async defer></script>
+        <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js" async defer></script>
 
-    {{-- Skrip untuk Pencarian Terkini --}}
+        <script>
+            // Menjalankan skrip peta setelah seluruh halaman selesai dimuat
+            window.addEventListener('load', function () {
+                const mapData = @json($mapData);
+                const centerPoint = @json($centerPoint);
+                const isNearbySearch = Array.isArray(mapData) && mapData.length > 0;
+                
+                const userLocationIcon = L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    shadowSize: [41, 41]
+                });
+
+                if (isNearbySearch) {
+                    const map = L.map('map').setView([centerPoint.lat, centerPoint.lon], 14);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(map);
+
+                    L.marker([centerPoint.lat, centerPoint.lon], {icon: userLocationIcon})
+                        .addTo(map)
+                        .bindPopup('<b>Lokasi Anda Saat Ini</b>')
+                        .openPopup();
+
+                    mapData.forEach(place => {
+                        L.marker([place.lat, place.lon])
+                            .addTo(map)
+                            .bindPopup(`<b>${place.display_name}</b>`);
+                    });
+                } else if (mapData) { // Kondisi untuk satu hasil
+                    const map = L.map('map').setView([mapData.lat, mapData.lon], 15);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(map);
+                    
+                    L.Routing.control({
+                        waypoints: [ null, L.latLng(mapData.lat, mapData.lon) ],
+                        routeWhileDragging: true,
+                        lineOptions: { styles: [{color: '#28a745', opacity: 1, weight: 5}] }
+                    }).addTo(map);
+
+                    L.marker([mapData.lat, mapData.lon])
+                        .addTo(map)
+                        .bindPopup(`<b>{{ $query }}</b><br>${mapData.display_name}`)
+                        .openPopup();
+                }
+            });
+        </script>
+    @endif
+
+    {{-- Script untuk Pencarian Terkini --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const query = '{{ $query ?? '' }}';
@@ -302,80 +363,6 @@
                 </a>
             `).join('');
         }
-    </script>
-    
-    {{-- ## PENAMBAHAN 3: Skrip Inisialisasi Peta yang Telah Diperbarui ## --}}
-    <script>
-        @if ($type === 'map' && !empty($mapData))
-            // Ambil data dari PHP Blade ke JavaScript
-            const mapData = @json($mapData);
-            const centerPoint = @json($centerPoint); // Bisa jadi null jika bukan pencarian terdekat
-
-            // Tentukan apakah ini pencarian terdekat (hasilnya berupa array)
-            const isNearbySearch = Array.isArray(mapData);
-            
-            // Buat icon khusus untuk lokasi pengguna
-            const userLocationIcon = L.icon({
-                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-                iconSize: [25, 41],
-                iconAnchor: [12, 41],
-                popupAnchor: [1, -34],
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                shadowSize: [41, 41]
-            });
-
-            // ===============================================================
-            // KONDISI 1: JIKA INI PENCARIAN TERDEKAT (BANYAK HASIL)
-            // ===============================================================
-            if (isNearbySearch) {
-                // Atur peta berpusat pada lokasi pengguna
-                const map = L.map('map').setView([centerPoint.lat, centerPoint.lon], 14);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                }).addTo(map);
-
-                // Tambahkan marker biru untuk lokasi pengguna
-                L.marker([centerPoint.lat, centerPoint.lon], {icon: userLocationIcon})
-                    .addTo(map)
-                    .bindPopup('<b>Lokasi Anda Saat Ini</b>')
-                    .openPopup();
-
-                // Loop dan tampilkan semua lokasi yang ditemukan
-                mapData.forEach(place => {
-                    L.marker([place.lat, place.lon])
-                        .addTo(map)
-                        .bindPopup(`<b>${place.display_name}</b>`);
-                });
-            } 
-            // ===============================================================
-            // KONDISI 2: JIKA INI PENCARIAN BIASA (SATU HASIL + RUTE)
-            // ===============================================================
-            else {
-                // Atur peta berpusat pada lokasi yang dicari
-                const map = L.map('map').setView([mapData.lat, mapData.lon], 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                }).addTo(map);
-                
-                // Tambahkan kontrol rute di peta
-                L.Routing.control({
-                    waypoints: [
-                        null, // Titik awal bisa diisi oleh pengguna
-                        L.latLng(mapData.lat, mapData.lon) // Titik tujuan adalah hasil pencarian
-                    ],
-                    routeWhileDragging: true,
-                    lineOptions: {
-                        styles: [{color: '#28a745', opacity: 1, weight: 5}]
-                    }
-                }).addTo(map);
-
-                // Tambahkan marker di lokasi tujuan
-                L.marker([mapData.lat, mapData.lon])
-                    .addTo(map)
-                    .bindPopup(`<b>{{ $query }}</b><br>${mapData.display_name}`)
-                    .openPopup();
-            }
-        @endif
     </script>
 </body>
 </html>

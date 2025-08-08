@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SearchLog; // <-- 1. TAMBAHKAN INI
+use App\Models\SearchLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth; // <-- 1. TAMBAHKAN INI
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Exception;
 
 class SearchController extends Controller
@@ -33,7 +35,7 @@ class SearchController extends Controller
 
         $this->saveSearchHistory($request, $query);
 
-        $startTime = microtime(true); // <-- 2. CATAT WAKTU MULAI
+        $startTime = microtime(true);
 
         try {
             $response = null;
@@ -43,26 +45,23 @@ class SearchController extends Controller
                 $response = $this->handleGoogleSearch($request);
             }
 
-            // <-- 3. LOGIKA PENCATATAN DATA DIMULAI DI SINI -->
             $endTime = microtime(true);
 
-            // Cek jika response adalah view dan punya data yang relevan
             if ($response instanceof \Illuminate\View\View && isset($response->getData()['totalResults'])) {
                 $viewData = $response->getData();
                 
                 SearchLog::create([
-                    'user_id'       => auth()->id(),
+                    'user_id'       => Auth::id(), // <-- 2. PERBAIKI DI SINI
                     'query'         => $query,
                     'results_count' => $viewData['totalResults'],
                     'search_time'   => round($endTime - $startTime, 3),
-                    'filters'       => ['type' => $type], // Simpan tipe sebagai JSON
+                    'filters'       => ['type' => $type],
                     'ip_address'    => $request->ip(),
                     'user_agent'    => $request->userAgent(),
                 ]);
             }
-            // <-- AKHIR LOGIKA PENCATATAN -->
 
-            return $response; // <-- 4. KEMBALIKAN RESPONSE ASLI
+            return $response;
 
         } catch (Exception $e) {
             Log::error('Search Controller Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
@@ -78,19 +77,13 @@ class SearchController extends Controller
         $query = $request->input('q');
         $lat = $request->input('lat');
         $lon = $request->input('lon');
-        $startTime = microtime(true);
 
         if ($lat && $lon) {
             $places = $this->findPlacesNearby($query, $lat, $lon);
             return view('search.result', [
-                'query'        => $query,
-                'type'         => 'map',
-                'mapData'      => $places,
-                'centerPoint'  => ['lat' => $lat, 'lon' => $lon],
-                'totalResults' => count($places),
-                'results'      => [],
-                'searchInfo'   => [],
-                'currentPage'  => 1,
+                'query'        => $query, 'type'         => 'map', 'mapData'      => $places,
+                'centerPoint'  => ['lat' => $lat, 'lon' => $lon], 'totalResults' => count($places),
+                'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1,
             ]);
         }
 
@@ -104,14 +97,9 @@ class SearchController extends Controller
                 $places = $this->findPlacesNearby($what, $locationCoords['lat'], $locationCoords['lon']);
                 if (!empty($places)) {
                     return view('search.result', [
-                        'query'        => $query,
-                        'type'         => 'map',
-                        'mapData'      => $places,
-                        'centerPoint'  => $locationCoords,
-                        'totalResults' => count($places),
-                        'results'      => [],
-                        'searchInfo'   => [],
-                        'currentPage'  => 1,
+                        'query'        => $query, 'type'         => 'map', 'mapData'      => $places,
+                        'centerPoint'  => $locationCoords, 'totalResults' => count($places),
+                        'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1,
                     ]);
                 }
             }
@@ -119,65 +107,72 @@ class SearchController extends Controller
 
         $location = $this->geocodeLocation($query . ', Indonesia');
         return view('search.result', [
-            'query'        => $query,
-            'type'         => 'map',
-            'mapData'      => $location ? [$location] : [], // Pastikan mapData selalu array
-            'centerPoint'  => $location,
-            'totalResults' => $location ? 1 : 0,
-            'results'      => [],
-            'searchInfo'   => [],
-            'currentPage'  => 1,
+            'query'        => $query, 'type'         => 'map', 'mapData'      => $location ? [$location] : [],
+            'centerPoint'  => $location, 'totalResults' => $location ? 1 : 0,
+            'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1,
         ]);
     }
 
     /**
-     * Memanggil Overpass API untuk mencari tempat di sekitar koordinat.
+     * Memanggil Overpass API dengan Caching.
      */
     private function findPlacesNearby($query, $lat, $lon, $radius = 10000)
     {
-        $overpassQuery = "[out:json][timeout:50];(node['name'~'{$query}',i](around:{$radius},{$lat},{$lon});way['name'~'{$query}',i](around:{$radius},{$lat},{$lon}););out center;";
-        
-        $response = Http::timeout(60)->asForm()->withHeaders([
-            'User-Agent' => config('app.name') . '/1.0 (sbi@example.com)'
-        ])->post('https://overpass-api.de/api/interpreter', ['data' => $overpassQuery]);
+        $cacheKey = 'overpass_' . md5($query . $lat . $lon . $radius);
+        $cacheDuration = now()->addHours(6); // Simpan hasil selama 6 jam
 
-        $places = [];
-        if ($response->successful()) {
-            foreach ($response->json()['elements'] as $element) {
-                if (isset($element['tags']['name']) && (isset($element['lat']) || isset($element['center']['lat']))) {
-                    $places[] = [
-                        'lat' => $element['lat'] ?? $element['center']['lat'],
-                        'lon' => $element['lon'] ?? $element['center']['lon'],
-                        'display_name' => $element['tags']['name'],
-                        'tags' => $element['tags'] ?? [],
-                    ];
+        return Cache::remember($cacheKey, $cacheDuration, function () use ($query, $lat, $lon, $radius) {
+            Log::info("CACHE MISS: Calling Overpass API for query: {$query}");
+            $overpassQuery = "[out:json][timeout:50];(node['name'~'{$query}',i](around:{$radius},{$lat},{$lon});way['name'~'{$query}',i](around:{$radius},{$lat},{$lon}););out center;";
+            
+            $response = Http::timeout(60)->asForm()->withHeaders([
+                'User-Agent' => config('app.name') . '/1.0 (sbi@example.com)'
+            ])->post('https://overpass-api.de/api/interpreter', ['data' => $overpassQuery]);
+
+            $places = [];
+            if ($response->successful()) {
+                foreach ($response->json()['elements'] as $element) {
+                    if (isset($element['tags']['name']) && (isset($element['lat']) || isset($element['center']['lat']))) {
+                        $places[] = [
+                            'lat' => $element['lat'] ?? $element['center']['lat'],
+                            'lon' => $element['lon'] ?? $element['center']['lon'],
+                            'display_name' => $element['tags']['name'],
+                            'tags' => $element['tags'] ?? [],
+                        ];
+                    }
                 }
             }
-        }
-        return $places;
+            return $places;
+        });
     }
 
     /**
-     * Memanggil Nominatim API untuk mengubah alamat menjadi koordinat.
+     * Memanggil Nominatim API dengan Caching.
      */
     private function geocodeLocation($address)
     {
-        $response = Http::timeout(60)->withHeaders([
-            'User-Agent' => config('app.name') . '/1.0 (sbi@example.com)'
-        ])->get('https://nominatim.openstreetmap.org/search', [
-            'q' => $address, 'format' => 'json', 'addressdetails' => 1, 'limit' => 1
-        ]);
+        $cacheKey = 'geocode_' . md5($address);
+        $cacheDuration = now()->addDays(30); // Simpan hasil selama 30 hari
 
-        if ($response->successful() && !empty($response->json())) {
-            $location = $response->json()[0];
-            return [
-                'lat' => $location['lat'],
-                'lon' => $location['lon'],
-                'display_name' => $location['display_name'],
-                'tags' => $location['address'] ?? [],
-            ];
-        }
-        return null;
+        return Cache::remember($cacheKey, $cacheDuration, function () use ($address) {
+            Log::info("CACHE MISS: Calling Nominatim API for address: {$address}");
+            $response = Http::timeout(60)->withHeaders([
+                'User-agent' => config('app.name') . '/1.0 (sbi@example.com)'
+            ])->get('https://nominatim.openstreetmap.org/search', [
+                'q' => $address, 'format' => 'json', 'addressdetails' => 1, 'limit' => 1
+            ]);
+
+            if ($response->successful() && !empty($response->json())) {
+                $location = $response->json()[0];
+                return [
+                    'lat' => $location['lat'],
+                    'lon' => $location['lon'],
+                    'display_name' => $location['display_name'],
+                    'tags' => $location['address'] ?? [],
+                ];
+            }
+            return null;
+        });
     }
 
     private function parseQuery($query)
@@ -199,7 +194,7 @@ class SearchController extends Controller
     private function handleGoogleSearch(Request $request)
     {
         $query = $request->input('q');
-        $type = $request->input('type', 'all'); // Default ke 'all'
+        $type = $request->input('type', 'all');
         $apiKey = env('GOOGLE_API_KEY');
         $searchEngineId = env('SEARCH_ENGINE_ID');
 
