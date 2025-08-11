@@ -96,7 +96,6 @@
                             $sortOptions = [
                                 'relevance' => 'Relevansi',
                                 'date'      => 'Paling Baru',
-                                'date:a'    => 'Paling Lama',
                             ];
                         @endphp
                         <div x-data="{ open: false }" class="relative">
@@ -142,12 +141,49 @@
                         </div>
                     </div>
 
+                    {{-- ## PERBAIKAN: MENGEMBALIKAN KODE UNTUK MENAMPILKAN GAMBAR DAN VIDEO ## --}}
                     @if ($type === 'image')
-                        {{-- Tampilan gambar tidak berubah --}}
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            @foreach($results as $result)
+                                <a href="{{ $result['image']['contextLink'] ?? $result['link'] }}" target="_blank" rel="noopener noreferrer" class="block group">
+                                    <img src="{{ $result['link'] }}" alt="{{ $result['title'] }}" class="w-full h-40 object-cover rounded-lg shadow-sm group-hover:shadow-md transition-all" onerror="this.src='https://via.placeholder.com/150?text=Error'">
+                                    <p class="mt-2 text-xs text-gray-600 group-hover:text-sbi-green line-clamp-2">{{ $result['title'] }}</p>
+                                </a>
+                            @endforeach
+                        </div>
                     @elseif ($type === 'video')
-                        {{-- Tampilan video tidak berubah --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                            @foreach($results as $result)
+                                @php $thumbnail = $result['pagemap']['cse_thumbnail'][0]['src'] ?? 'https://via.placeholder.com/320x180?text=No+Thumbnail'; @endphp
+                                <a href="{{ $result['link'] }}" target="_blank" rel="noopener noreferrer" class="group block bg-white rounded-lg shadow hover:shadow-lg overflow-hidden transition-all">
+                                    <div class="relative">
+                                        <img src="{{ $thumbnail }}" alt="{{ $result['title'] }}" class="w-full h-44 object-cover">
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 flex items-center justify-center transition-opacity duration-300">
+                                            <i class="fas fa-play-circle text-white text-5xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></i>
+                                        </div>
+                                    </div>
+                                    <div class="p-4">
+                                        <h4 class="text-sm font-semibold text-gray-800 group-hover:text-sbi-green line-clamp-2">{{ $result['title'] }}</h4>
+                                        <p class="text-xs text-gray-500 mt-1">{{ $result['displayLink'] }}</p>
+                                    </div>
+                                </a>
+                            @endforeach
+                        </div>
                     @elseif ($type === 'map')
-                        {{-- Tampilan peta tidak berubah --}}
+                        @if (!empty($mapData))
+                            @if(isset($centerPoint))
+                                <h3 class="text-lg font-semibold text-sbi-gray mb-4">Menampilkan hasil untuk <span class="font-bold">"{{ $query }}"</span> di sekitar lokasi Anda.</h3>
+                            @else
+                                <h3 class="text-lg font-semibold text-sbi-gray mb-4">Lokasi ditemukan untuk: <span class="font-bold">"{{ $query }}"</span></h3>
+                            @endif
+                            <div id="map"></div>
+                        @else
+                            <div class="text-center py-12 bg-white rounded-lg shadow-sm">
+                                <i class="fas fa-map-marked-alt text-6xl text-gray-300"></i>
+                                <h3 class="text-xl font-semibold text-sbi-gray mt-4 mb-2">Lokasi Tidak Ditemukan</h3>
+                                <p class="text-sbi-light-gray">Maaf, kami tidak dapat menemukan hasil untuk "{{ $query }}".</p>
+                            </div>
+                        @endif
                     @else
                         <div class="space-y-6">
                             @foreach($results as $index => $result)
@@ -165,7 +201,6 @@
                                             <h3><a href="{{ $result['link'] }}" target="_blank" rel="noopener noreferrer" class="result-link hover:text-sbi-green transition-colors">{{ $result['title'] }}</a></h3>
                                         </div>
                                         <div class="flex items-center space-x-2 text-sm text-gray-500">
-                                            {{-- ## PERUBAHAN 1: MEMPERBAIKI LOGIKA PENOMORAN ## --}}
                                             <span>#{{ $currentPage + $index }}</span>
                                             <a href="{{ $result['link'] }}" target="_blank" class="text-sbi-green hover:text-sbi-dark-green transition-colors"><i class="fas fa-external-link-alt"></i></a>
                                         </div>
@@ -200,11 +235,8 @@
                     @endif
                     
                     @if($type !== 'map' && !empty($results))
-                        {{-- ## PERUBAHAN 2: MEROMBAK TOTAL LOGIKA PAGINATION ## --}}
                         @php
-                            // Menghitung nomor halaman saat ini berdasarkan 'start'
-                            $pageNumber = floor($currentPage / 10) + 1;
-                            // Menghitung total halaman yang tersedia (maksimal 10 karena batasan API)
+                            $pageNumber = floor(($currentPage - 1) / 10) + 1;
                             $totalPages = min(10, ceil($totalResults / 10));
                         @endphp
                         <div class="mt-12 flex justify-center">
