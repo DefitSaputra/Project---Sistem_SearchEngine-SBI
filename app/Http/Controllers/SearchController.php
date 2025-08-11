@@ -4,26 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\SearchLog;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // <-- 1. TAMBAHKAN INI
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Exception;
+use Carbon\Carbon;
 
 class SearchController extends Controller
 {
-    /**
-     * Menampilkan halaman utama pencarian (form pencarian).
-     */
     public function index(Request $request)
     {
         $searchHistory = $request->session()->get('search_history', []);
         return view('dashboard', ['searchHistory' => $searchHistory]);
     }
 
-    /**
-     * Menjalankan semua jenis pencarian dan mencatatnya.
-     */
     public function search(Request $request)
     {
         $query = $request->input('q');
@@ -51,11 +46,11 @@ class SearchController extends Controller
                 $viewData = $response->getData();
                 
                 SearchLog::create([
-                    'user_id'       => Auth::id(), // <-- 2. PERBAIKI DI SINI
+                    'user_id'       => Auth::id(),
                     'query'         => $query,
                     'results_count' => $viewData['totalResults'],
                     'search_time'   => round($endTime - $startTime, 3),
-                    'filters'       => ['type' => $type],
+                    'filters'       => $request->only(['type', 'sort_by']),
                     'ip_address'    => $request->ip(),
                     'user_agent'    => $request->userAgent(),
                 ]);
@@ -69,21 +64,21 @@ class SearchController extends Controller
         }
     }
 
-    /**
-     * Logika baru dan lebih cerdas untuk menangani semua pencarian peta.
-     */
     private function handleMapSearch(Request $request)
     {
         $query = $request->input('q');
         $lat = $request->input('lat');
         $lon = $request->input('lon');
 
+        // ## PERBAIKAN: PASTIKAN sortBy DIKIRIM KE VIEW ##
+        $sortBy = $request->input('sort_by', 'relevance');
+
         if ($lat && $lon) {
             $places = $this->findPlacesNearby($query, $lat, $lon);
             return view('search.result', [
                 'query'        => $query, 'type'         => 'map', 'mapData'      => $places,
                 'centerPoint'  => ['lat' => $lat, 'lon' => $lon], 'totalResults' => count($places),
-                'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1,
+                'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1, 'sortBy' => $sortBy
             ]);
         }
 
@@ -99,7 +94,7 @@ class SearchController extends Controller
                     return view('search.result', [
                         'query'        => $query, 'type'         => 'map', 'mapData'      => $places,
                         'centerPoint'  => $locationCoords, 'totalResults' => count($places),
-                        'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1,
+                        'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1, 'sortBy' => $sortBy
                     ]);
                 }
             }
@@ -109,17 +104,14 @@ class SearchController extends Controller
         return view('search.result', [
             'query'        => $query, 'type'         => 'map', 'mapData'      => $location ? [$location] : [],
             'centerPoint'  => $location, 'totalResults' => $location ? 1 : 0,
-            'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1,
+            'results'      => [], 'searchInfo'   => [], 'currentPage'  => 1, 'sortBy' => $sortBy
         ]);
     }
 
-    /**
-     * Memanggil Overpass API dengan Caching.
-     */
     private function findPlacesNearby($query, $lat, $lon, $radius = 10000)
     {
         $cacheKey = 'overpass_' . md5($query . $lat . $lon . $radius);
-        $cacheDuration = now()->addHours(6); // Simpan hasil selama 6 jam
+        $cacheDuration = now()->addHours(6);
 
         return Cache::remember($cacheKey, $cacheDuration, function () use ($query, $lat, $lon, $radius) {
             Log::info("CACHE MISS: Calling Overpass API for query: {$query}");
@@ -146,13 +138,10 @@ class SearchController extends Controller
         });
     }
 
-    /**
-     * Memanggil Nominatim API dengan Caching.
-     */
     private function geocodeLocation($address)
     {
         $cacheKey = 'geocode_' . md5($address);
-        $cacheDuration = now()->addDays(30); // Simpan hasil selama 30 hari
+        $cacheDuration = now()->addDays(30);
 
         return Cache::remember($cacheKey, $cacheDuration, function () use ($address) {
             Log::info("CACHE MISS: Calling Nominatim API for address: {$address}");
@@ -209,9 +198,22 @@ class SearchController extends Controller
             'hl' => 'id', 'lr' => 'lang_id',
         ];
 
+        // ## PERBAIKAN: LOGIKA SORT YANG BENAR ##
+        $sortBy = $request->input('sort_by', 'relevance');
+        
+        // Google API menggunakan 'date' untuk Paling Baru (descending)
+        // dan tidak memiliki parameter untuk Paling Lama (ascending).
+        // Jadi kita hanya menambahkan parameter sort jika 'Paling Baru' dipilih.
+        if ($sortBy === 'date') {
+            $searchParams['sort'] = 'date';
+        }
+        
         switch ($type) {
             case 'image': $searchParams['searchType'] = 'image'; break;
-            case 'news': $searchParams['sort'] = 'date'; break;
+            case 'news':
+                // Untuk tipe berita, selalu urutkan berdasarkan tanggal
+                $searchParams['sort'] = 'date';
+                break;
             case 'video': $searchParams['q'] = "site:youtube.com " . $query; break;
         }
 
@@ -228,6 +230,7 @@ class SearchController extends Controller
                 'totalResults' => (int)($data['searchInformation']['totalResults'] ?? 0),
                 'mapData'      => null,
                 'centerPoint'  => null,
+                'sortBy'       => $sortBy,
             ]);
         }
         
